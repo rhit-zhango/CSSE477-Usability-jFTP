@@ -281,8 +281,8 @@ public class LocalDir extends DirComponent implements ListSelectionListener,
         jlm = new DefaultListModel();
         jl = new JList(jlm);
         //addedULab
-        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        jl.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        jl.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         //addedULab end
         jl.setCellRenderer(new DirCellRenderer());
         jl.setVisibleRowCount(Settings.visibleFileRows);
@@ -1101,25 +1101,42 @@ public class LocalDir extends DirComponent implements ListSelectionListener,
         }
 
         TableUtils.copyTableSelectionsToJList(jl, table);
-        DirEntry entry = (DirEntry) jl.getSelectedValue();
-        if(entry == null)
+        int[] selectedIndices = jl.getSelectedIndices();
+        if(selectedIndices.length == 0)
         {
             Log.debug("Select a file to upload.");
             return;
         }
 
-        final File source = new File(path, entry.file).getAbsoluteFile();
+        final File[] sources = new File[selectedIndices.length];
+        for(int i = 0; i < selectedIndices.length; i++)
+        {
+            DirEntry entry = (DirEntry) jl.getModel().getElementAt(selectedIndices[i]);
+            sources[i] = new File(path, entry.file).getAbsoluteFile();
+        }
+
         final FtpConnection destination = getUploadConnection();
-        if(destination == null || !canUpload(source))
+        if(destination == null)
         {
             return;
+        }
+
+        for(int i = 0; i < sources.length; i++)
+        {
+            if(!canUpload(sources[i]))
+            {
+                return;
+            }
         }
 
         runTransfer(new Runnable()
         {
             public void run()
             {
-                uploadFile(source, destination);
+                for(int i = 0; i < sources.length; i++)
+                {
+                    uploadFile(sources[i], destination);
+                }
             }
         });
     }
